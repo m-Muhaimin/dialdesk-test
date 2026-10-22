@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import SampleWebsite from './sample-website';
 
 export const metadata: Metadata = {
-  title: 'Sample widget integration',
-  description: 'A sample business website for testing the DialDesk voice receptionist widget.',
+  title: 'Northstar Dental - Patient information',
+  description:
+    'Explore dental services, standard self-pay estimates, appointment policies, and answers to common questions.',
   robots: { index: false, follow: false },
 };
 

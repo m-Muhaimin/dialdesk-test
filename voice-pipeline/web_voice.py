@@ -24,7 +24,6 @@ from pipecat.processors.aggregators.llm_response_universal import (
 from pipecat.services.groq.stt import GroqSTTService
 from pipecat.services.kokoro.tts import KokoroTTSService
 from pipecat.services.llm_service import FunctionCallParams
-from pipecat.services.ollama.llm import OLLamaLLMService
 from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.connection import (
     IceServer,
@@ -40,10 +39,9 @@ from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.workers.runner import WorkerRunner
 
 from local_voice import (
-    LLAMA_BASE_URL,
-    LLAMA_MODEL,
     SPEED,
     VOICE,
+    build_llm_service,
     check_configuration,
     load_groq_key_from_project_env,
     project_env_value,
@@ -51,6 +49,7 @@ from local_voice import (
 
 APP_URL = (
     os.environ.get("DIALDESK_APP_URL")
+    or project_env_value("DIALDESK_APP_URL")
     or os.environ.get("APP_URL")
     or project_env_value("APP_URL")
 ).strip().rstrip("/")
@@ -182,14 +181,7 @@ async def run_call(connection: SmallWebRTCConnection, call_token: str, config: d
             api_key=os.environ["GROQ_API_KEY"],
             settings=GroqSTTService.Settings(model=GROQ_MODEL),
         )
-        llm = OLLamaLLMService(
-            base_url=LLAMA_BASE_URL,
-            settings=OLLamaLLMService.Settings(
-                model=LLAMA_MODEL,
-                temperature=0.2,
-                max_tokens=160,
-            ),
-        )
+        llm = build_llm_service()
         configured_voice = config.get("voice")
         voice = LEGACY_VOICE_MAP.get(configured_voice, configured_voice) if isinstance(configured_voice, str) else VOICE
         tts = KokoroTTSService(
@@ -215,7 +207,8 @@ async def run_call(connection: SmallWebRTCConnection, call_token: str, config: d
         )
 
         @user_aggregator.event_handler("on_user_turn_stopped")
-        async def on_user_turn_stopped(_, message):
+        async def on_user_turn_stopped(_, strategy, message):
+            # Pipecat passes (aggregator, strategy, message) here.
             if message.content:
                 connection.send_app_message({"type": "transcript", "role": "user", "text": message.content})
 
